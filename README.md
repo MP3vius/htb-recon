@@ -29,23 +29,23 @@ cargo install rustscan
 
 ## 🔧 Features
 
-Quick Scans: Fast full-port discovery using Nmap or Rustscan.
+- Quick Scans: Fast full-port discovery using Nmap or Rustscan.
 
-Deep Scans: Thorough Nmap service enumeration based on quickscan output.
+- Deep Scans: Thorough Nmap service enumeration based on quickscan output.
 
-Directory Fuzzing: Fuzz web directories using FFUF.
+- Directory Fuzzing: Fuzz web directories using FFUF.
 
-Subdomain Fuzzing: Bruteforce virtual host subdomains and auto-add to /etc/hosts.
+- Subdomain Fuzzing: Bruteforce virtual host subdomains and auto-add to /etc/hosts.
 
-DNS Zone Transfer: AXFR query support using dig.
+- DNS Zone Transfer: AXFR query support using dig.
 
-FTP Enumeration: Anonymous login checks and auto-download via lftp.
+- FTP Enumeration: Anonymous login checks and auto-download via lftp.
 
-SMB Enumeration: Basic share listing and user/group info via enum4linux.
+- SMB Enumeration: Basic share listing and user/group info via enum4linux.
 
-SMB Enumeration: Null session share access and recursive download with smbclient and smbget.
+- SMB Enumeration: Null session share access and recursive download with smbclient and smbget.
 
-NFS Enumeration: Checking for mountable shares and auto mounting for the user.
+- NFS Enumeration: Checking for mountable shares and auto mounting for the user.
 
 ## 🚀 Usage
 
