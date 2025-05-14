@@ -11,38 +11,76 @@ NC='\033[0m'
 
 ### FUNCTIONS
 
+# sudo password check
+check_sudo_password() {
+  while true; do
+    sudo -k
+    read -s -p "Enter your sudo password: " SUDO_PASSWD
+    echo
+
+    echo "$SUDO_PASSWD" | sudo -S -v &>/dev/null
+    if [ $? -eq 0 ]; then
+        break
+    else
+        echo -e "${RED}[-] Incorrect sudo password. Please try again.${NC}"
+    fi
+  done
+}
+
 # output var check
 check_output_path() {
-  if [[ -z "$OUTPUT_PATH" ]]; then
+  while [[ -z "$OUTPUT_PATH" || ! "$OUTPUT_PATH" =~ ^/ ]]; do
     echo -e $NEW_LINE
     echo -e "Enter the directory path where you want to save output."
     echo -e "(Example: /home/kali/htb/boxes/dog)"
     echo -e "-------------------------------------------------------"
     read -p "Path: " OUTPUT_PATH
-    echo -e $NEW_LINE
-    sleep 0.5
-  fi
+    if [[ ! "$OUTPUT_PATH" =~ ^/ ]]; then
+      echo -e "${RED}[-] Invalid path. It must start with '/'.${NC}"
+      OUTPUT_PATH=""
+    fi
+  done
+  echo -e $NEW_LINE
+  sleep 0.5
 }
 
 # IP var check
 check_ip_address() {
-  if [[ -z "$IP_ADDRESS" ]]; then
-    read -p "Enter the IP address: " IP_ADDRESS
-    sleep 0.5
-  fi
+  while true; do
+    read -p "Enter the IP address | example: 10.10.10.10 (or press Enter to skip): " IP_ADDRESS
+    if [[ -z "$IP_ADDRESS" ]]; then
+      # Allow skipping
+      break
+    elif [[ "$IP_ADDRESS" =~ ^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$ ]]; then
+      break
+    else
+      echo -e "${RED}[-] Invalid IP address format. Please enter a valid IP like 192.168.1.1, or press Enter to skip.${NC}"
+      IP_ADDRESS=""
+    fi
+  done
+  sleep 0.5
 }
 
 # Domain var check
 check_domain() {
-  if [[ -z "$DOMAIN" ]]; then
-    read -p "Enter the domain (example: dog.htb): " DOMAIN
-    sleep 0.5
-  fi
+  while true; do
+    read -p "Enter the domain | example: dog.htb (or press Enter to skip): " DOMAIN
+    if [[ -z "$DOMAIN" ]]; then
+      # Allow skipping
+      break
+    elif [[ "$DOMAIN" =~ ^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$ ]]; then
+      break
+    else
+      echo -e "${RED}[-] Invalid domain. Only letters, numbers, hyphens, and dots are allowed. Must end in a valid TLD.${NC}"
+      DOMAIN=""
+    fi
+  done
+  sleep 0.5
 }
 
 # appending to hosts file
 append_to_hosts() {
-echo -e "$SUDO_PASSWD" | sudo -S -p "" bash -c "echo '$IP_ADDRESS $DOMAIN' >> /etc/hosts"
+echo -e "${SUDO_PASSWD}" | sudo -S -p "" bash -c "echo '${IP_ADDRESS} ${DOMAIN}' >> /etc/hosts"
 }
 
 # installation check
@@ -58,24 +96,18 @@ fi
 # quick nmap scan
 quick_nmap() {
 install_check nmap
-echo -e $NEW_LINE
-echo -e "Enter the directory path where you want to save the \"quickscan\" output."
-echo -e "(Example: /home/kali/htb/boxes/dog)"
-echo -e "-----------------------------------------------------------------------"
-read -p "Path: " OUTPUT_PATH
-echo -e $NEW_LINE
-
-mkdir -p "$OUTPUT_PATH"
+check_output_path
+mkdir -p "$OUTPUT_PATH/nmap"
 
 echo -e "${BLUE}[*] Running nmap scan on $IP_ADDRESS...${NC}"
 sleep 0.5
-nmap -p- $IP_ADDRESS -T5 -oA "$OUTPUT_PATH/quickscan"
+nmap -p- "${IP_ADDRESS}" -T5 -oA "${OUTPUT_PATH}/nmap/quickscan"
 
 if [ $? -eq 0 ]
 then
 	echo -e "${GREEN}[+] Scan completed successfully.${NC}"
 	sleep 0.5
-	echo -e "${BLUE}[*] Output saved to: $OUTPUT_PATH/quickscan.${NC}"
+	echo -e "${BLUE}[*] Output saved to: $OUTPUT_PATH/nmap/quickscan.${NC}"
 	sleep 0.5
 else
 	echo -e "${RED}[-] nmap scan failed!${NC}"
@@ -86,18 +118,13 @@ fi
 # quick rustscan
 quick_rustscan() {
 install_check rustscan
-echo -e $NEW_LINE
-echo -e "Enter the directory path where you want to save the \"quickscan\" output."
-echo -e "----------------------------------------------------------------------"
-read -p "Path: " OUTPUT_PATH
-echo -e $NEW_LINE
+check_output_path
+mkdir -p "$OUTPUT_PATH/nmap"
 
-mkdir -p "$OUTPUT_PATH"
-
-echo -e "${BLUE}[*] Running rustcan on $IP_ADDRESS...${NC}"
+echo -e "${BLUE}[*] Running rustscan on $IP_ADDRESS...${NC}"
 echo -e $NEW_LINE
 sleep 0.5
-rustscan -a $IP_ADDRESS --range 1-65535 --ulimit 5000 --greppable > "$OUTPUT_PATH/quickscan.txt"
+rustscan -a "${IP_ADDRESS}" --range 1-65535 --ulimit 5000 --greppable > "${OUTPUT_PATH}/nmap/quickscan.txt"
 
 if [ $? -eq 0 ]
 then
@@ -106,12 +133,12 @@ then
 	echo -e "--------------------${NC}"
 	echo -e $NEW_LINE
 	echo -e ${YELLOW}
-        cat "$OUTPUT_PATH/quickscan.txt"
+        cat "$OUTPUT_PATH/nmap/quickscan.txt"
 	echo -e ${NC}
 	echo -e $NEW_LINE
 	echo -e "${GREEN}[+] Scan completed successfully.${NC}"
 	sleep 0.5
-	echo -e "${BLUE}[*] Output saved to: $OUTPUT_PATH/quickscan.${NC}"
+	echo -e "${BLUE}[*] Output saved to: $OUTPUT_PATH/nmap/quickscan.${NC}"
 	sleep 0.5
 else
 	echo -e "${RED}[-] rustscan failed!${NC}"
@@ -121,21 +148,28 @@ fi
 
 # thorough nmap scan
 deep_nmap() {
-check_ip_address
-check_domain
+
+    	if [[ -z "$IP_ADDRESS" ]]; then
+    check_ip_address
+    	fi
+
+    	if [[ -z "$DOMAIN" ]]; then
+    check_domain
+    	fi
+
 check_output_path
     echo -e $NEW_LINE
     echo -e "${BLUE}[*] Filtering ports from quick scan output if available...${NC}"
     sleep 0.5
 
-    if [ -f "$OUTPUT_PATH/quickscan.gnmap" ]; then
+    if [ -f "$OUTPUT_PATH/nmap/quickscan.gnmap" ]; then
         echo -e "${BLUE}[*] Extracting open ports from quickscan.gnmap (Nmap format)${NC}"
-        awk -F'[ /]' '/Ports:/{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+$/ && $(i+1)=="open" && $(i+2)=="tcp") print $i}' "$OUTPUT_PATH/quickscan.gnmap" | sort -n | uniq > "$OUTPUT_PATH/ports.txt"
+        awk -F'[ /]' '/Ports:/{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+$/ && $(i+1)=="open" && $(i+2)=="tcp") print $i}' "$OUTPUT_PATH/nmap/quickscan.gnmap" | sort -n | uniq > "$OUTPUT_PATH/nmap/ports.txt"
 	sleep 0.5
 
-    elif [ -f "$OUTPUT_PATH/quickscan.txt" ]; then
+    elif [ -f "$OUTPUT_PATH/nmap/quickscan.txt" ]; then
         echo -e "${BLUE}[*] Extracting open ports from quickscan.txt (RustScan format)${NC}"
-	grep -oP '\[\K[0-9,]+' "$OUTPUT_PATH/quickscan.txt" | tr ',' '\n' | sort -n | uniq > "$OUTPUT_PATH/ports.txt"
+	grep -oP '\[\K[0-9,]+' "$OUTPUT_PATH/nmap/quickscan.txt" | tr ',' '\n' | sort -n | uniq > "$OUTPUT_PATH/nmap/ports.txt"
 	sleep 0.5
 
     else
@@ -143,8 +177,8 @@ check_output_path
 	sleep 0.5
 	echo -e "${BLUE}[*] This can take a little longer...${NC}"
 	sleep 0.5
-        nmap -p- -sV -sC -T5 $IP_ADDRESS -oA "$OUTPUT_PATH/deepscan"
-        if [ ! -f "$OUTPUT_PATH/deepscan.gnmap" ]; then
+        nmap -p- -sV -sC -T5 "${IP_ADDRESS}" -oA "${OUTPUT_PATH}/nmap/deepscan"
+        if [ ! -f "$OUTPUT_PATH/nmap/deepscan.gnmap" ]; then
             echo "${RED}[-] Thorough scan failed! Exiting...${NC}"
 	    sleep 0.5
             exit 1
@@ -154,17 +188,17 @@ check_output_path
 
     echo -e "${BLUE}[*] Running thorough nmap scan on the extracted ports...${NC}"
     sleep 0.5
-    PORTS=$(paste -sd, "$OUTPUT_PATH/ports.txt")
-    nmap -sV -sC -T5 -p"$PORTS" $IP_ADDRESS -oA "$OUTPUT_PATH/deepscan"
+    PORTS=$(paste -sd, "$OUTPUT_PATH/nmap/ports.txt")
+    nmap -sV -sC -T5 -p"${PORTS}" "${IP_ADDRESS}" -oA "${OUTPUT_PATH}/nmap/deepscan"
 
-    if [ ! -f "$OUTPUT_PATH/deepscan.gnmap" ]; then
+    if [ ! -f "$OUTPUT_PATH/nmap/deepscan.gnmap" ]; then
         echo -e "${RED}[-] Thorough scan failed! Exiting...${NC}"
         sleep 0.5
 	exit 1
     else
         echo -e "${GREEN}[+] Scan completed successfully.${NC}"
 	sleep 0.5
-        echo -e "${BLUE}[*] Output saved to: $OUTPUT_PATH/deepscan.${NC}"
+        echo -e "${BLUE}[*] Output saved to: $OUTPUT_PATH/nmap/deepscan.${NC}"
         sleep 0.5
     fi
 }
@@ -173,16 +207,26 @@ check_output_path
 dir_fuzz() {
     install_check ffuf
     check_output_path
+
+    	if [[ -z "$DOMAIN" ]]; then
     check_domain
+    	fi
+
     echo -e $NEW_LINE
     echo -e "${BLUE}[*] Starting directory fuzzing...${NC}"
 
     mkdir -p "$OUTPUT_PATH/dir"
 
-    echo -e $NEW_LINE
+    while true; do
     echo -e "Please specify the port to use for directory fuzzing."
     echo -e "-----------------------------------------------------"
     read -p "Enter port: " DIR_PORT
+    if [[ "$DIR_PORT" =~ ^[0-9]+$ ]]; then
+        break
+    else
+        echo -e "${RED}[-] Invalid port. Please enter digits only.${NC}"
+    fi
+	done
 
     echo -e $NEW_LINE 
     echo -e "Please specify what wordlist to use for directory fuzzing."
@@ -193,12 +237,12 @@ dir_fuzz() {
     if [ ! -f "$DIR_LIST" ]; then
         echo -e "${RED}[-] Wordlist $DIR_LIST not found! Exiting...${NC}"
 	sleep 0.5
-        exit 1
+        return
     fi
 
     echo -e "${BLUE}[*] Running ffuf on http://$DOMAIN:$DIR_PORT using wordlist $DIR_LIST.${NC}"
     sleep 0.5
-    ffuf -w "$DIR_LIST":FUZZ -u http://$DOMAIN:$DIR_PORT/FUZZ "OUTPUT_PATH/dir/results.txt" | tee -a "$OUTPUT_PATH/dir/results.txt"
+    ffuf -w "${DIR_LIST}":FUZZ -u "http://${DOMAIN}:${DIR_PORT}/FUZZ" -o "${OUTPUT_PATH}/dir/results.txt" | tee -a "${OUTPUT_PATH}/dir/results.txt"
 
     echo -e "${GREEN}[+] Directory fuzzing completed. Results saved to: $OUTPUT_PATH/dir/results.txt.${NC}"
     sleep 0.5
@@ -208,16 +252,27 @@ dir_fuzz() {
 sub_fuzz() {
     install_check ffuf
     check_output_path
+
+    	if [[ -z "$DOMAIN" ]]; then
     check_domain
+    	fi
+
     echo -e $NEW_LINE
     echo -e "${BLUE}[*] Starting subdomain fuzzing...${NC}"
 
     mkdir -p "$OUTPUT_PATH/sub"
 
     echo -e $NEW_LINE
+    while true; do
     echo -e "Please specify the port to use for subdomain fuzzing."
     echo -e "-----------------------------------------------------"
     read -p "Enter port: " SUB_PORT
+    if [[ "$SUB_PORT" =~ ^[0-9]+$ ]]; then
+        break
+    else
+        echo -e "${RED}[-] Invalid port. Please enter digits only.${NC}"
+    fi
+	done
 
     echo -e $NEW_LINE
     echo -e "Please specify what wordlist to use for subdomain fuzzing."
@@ -228,13 +283,13 @@ sub_fuzz() {
     if [ ! -f "$SUB_LIST" ]; then
         echo -e "${RED}[-] Wordlist $SUB_LIST not found! Exiting...${NC}"
 	sleep 0.5
-        exit 1
+        return
     fi
     echo -e "${BLUE}[*] Running ffuf on http://$DOMAIN:$SUB_PORT using wordlist $SUB_LIST.${NC}"
     sleep 0.5
-    echo -e "${YELLOW}[!] Please note once scan runs you can press ENTER for an interactive shell to set size filter with \"fs [value]\"" 
+    echo -e "${YELLOW}[!] Please note once scan runs you can press ENTER for an interactive shell to set size filter with \"fs [value]\"${NC}" 
     sleep 2.5
-    ffuf -w "$SUB_LIST":FUZZ -u http://$DOMAIN:$SUB_PORT/ -H "Host: FUZZ.$DOMAIN" -o "$OUTPUT_PATH/sub/results.txt" | tee -a "$OUTPUT_PATH/sub/results.txt"
+    ffuf -w "${SUB_LIST}":FUZZ -u "http://${DOMAIN}:${SUB_PORT}/" -H "Host: FUZZ.${DOMAIN}" -o "${OUTPUT_PATH}/sub/results.txt" | tee -a "${OUTPUT_PATH}/sub/results.txt"
 
     echo -e "${GREEN}[+] Subdomain fuzzing completed. Results saved to: $OUTPUT_PATH/sub/results.txt.${NC}"
     sleep 0.5
@@ -251,7 +306,7 @@ sub_fuzz() {
     	for SUB in $FOUND_SUBS; do
         	FQDN="$SUB.$DOMAIN"
         	if ! grep -q "$FQDN" /etc/hosts; then
-            	echo -e "$SUDO_PASSWD" | sudo -S -p "" bash -c "echo '$IP_ADDRESS $FQDN' >> /etc/hosts"
+            	echo -e "${SUDO_PASSWD}" | sudo -S -p "" bash -c "echo '${IP_ADDRESS} ${FQDN}' >> /etc/hosts"
             	echo -e "${GREEN}[+] Added subdomains(s) to /etc/hosts${NC}"
             	sleep 0.5
         	fi
@@ -262,15 +317,22 @@ sub_fuzz() {
 # DNS zone transfer check
 dns_check() {
     install_check dig
+
+    	if [[ -z "$IP_ADDRESS" ]]; then
     check_ip_address
+    	fi
+
+    	if [[ -z "$DOMAIN" ]]; then
     check_domain
+    	fi
+
     check_output_path
     echo -e $NEW_LINE
     echo -e "${BLUE}[*] Starting zone transfer check...${NC}"
     sleep 0.5
     mkdir -p "$OUTPUT_PATH/dns"
 
-    dig axfr $DOMAIN @$IP_ADDRESS > "$OUTPUT_PATH/dns/results.txt"
+    dig axfr "${DOMAIN}" @"${IP_ADDRESS}" > "${OUTPUT_PATH}/dns/results.txt"
 
     if [ -f "$OUTPUT_PATH/dns/results.txt" ]; then
     	cat "$OUTPUT_PATH/dns/results.txt"
@@ -286,7 +348,11 @@ dns_check() {
 ftp_check() {
     install_check ftp
     install_check lftp
+
+    	if [[ -z "$IP_ADDRESS" ]]; then
     check_ip_address
+    	fi
+
     check_output_path
     echo -e $NEW_LINE
     echo -e "${BLUE}[*] Starting FTP anonymous login check...${NC}"
@@ -316,7 +382,11 @@ ftp_check() {
 # enum4linux
 smb_enum() {
     install_check enum4linux
+
+    	if [[ -z "$IP_ADDRESS" ]]; then
     check_ip_address
+    	fi
+
     check_output_path
     echo -e $NEW_LINE
     echo -e "${BLUE}[*] Starting enum4linux...${NC}"
@@ -326,7 +396,7 @@ smb_enum() {
 
     mkdir -p "$OUTPUT_PATH/smb/enum4linux"
 
-    enum4linux $IP_ADDRESS > "$OUTPUT_PATH/smb/enum4linux/results.txt" 2>/dev/null
+    enum4linux "${IP_ADDRESS}" > "${OUTPUT_PATH}/smb/enum4linux/results.txt" 2>/dev/null
 
     if [ -f "$OUTPUT_PATH/smb/enum4linux/results.txt" ]; then
     	echo -e "${GREEN}[+] Output saved to: $OUTPUT_PATH/smb/enum4linux/results.txt.${NC}"
@@ -344,7 +414,11 @@ smb_enum() {
 smb_null() {
     install_check smbclient
     install_check smbget
+
+    	if [[ -z "$IP_ADDRESS" ]]; then
     check_ip_address
+    	fi
+
     check_output_path
     echo -e "$NEW_LINE"
     echo -e "${BLUE}[*] Starting SMB null authentication check using smbclient and smbget...${NC}"
@@ -353,7 +427,7 @@ smb_null() {
     mkdir -p "$OUTPUT_PATH/smb/downloads"
 
     echo -e "${BLUE}[*] Listing SMB shares on $IP_ADDRESS...${NC}"
-    smbclient -L "//${IP_ADDRESS}" -N 2>/dev/null | grep -P "^\s+[a-zA-Z0-9_\$-]+" | awk '{print $1}' > "$OUTPUT_PATH/smb/shares.txt"
+    smbclient -L "//${IP_ADDRESS}" -N 2>/dev/null | grep -P "^\s+[a-zA-Z0-9_\$-]+" | awk '{print $1}' > "${OUTPUT_PATH}/smb/shares.txt"
     sleep 0.5
 
     # Remove headers and separators from the output
@@ -384,7 +458,7 @@ smb_null() {
         # Change into the share's download directory so smbget downloads files there
         pushd "$SHARE_DOWNLOAD_DIR" > /dev/null
 
-        smbget --recursive --user="" --no-pass "smb://$IP_ADDRESS/$SHARE_NAME"
+        smbget --recursive --user="" --no-pass "smb://${IP_ADDRESS}/${SHARE_NAME}"
 
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}[+] Download from '$SHARE_NAME' completed successfully.${NC}"
@@ -424,10 +498,13 @@ smb_check() {
 
 # NFS check and mounting
 nfs_check() {
-    # Ensure required tools are available.
     install_check showmount
     install_check mount
+
+    	if [[ -z "$IP_ADDRESS" ]]; then
     check_ip_address
+    	fi
+
     check_output_path
     echo -e "$NEW_LINE"
     echo -e "${BLUE}[*] Starting NFS share check against $IP_ADDRESS...${NC}"
@@ -481,7 +558,7 @@ nfs_check() {
 
 ### PROMPT FOR SUDO PASSWORD
 
-read -s -p "Enter your sudo password: " SUDO_PASSWD 
+check_sudo_password
 
 ### ASCII + INFO
 
@@ -507,8 +584,10 @@ echo -e "Let's add the IP and domain name to your hosts file"
 echo -e $NEW_LINE
 echo -e "${YELLOW}[!] OR PRESS ENTER TO SKIP, BUT MAKE SURE TO MANUALLY ADD TO HOST FILE.${NC}"
 echo -e "-----------------------------------------------------------------------"
-read -p "Enter the IP address: " IP_ADDRESS
-read -p "Enter the domain (example: dog.htb): " DOMAIN
+
+check_ip_address
+
+check_domain
 
 # Only run append_to_hosts if both inputs were provided
 if [[ -n "$IP_ADDRESS" && -n "$DOMAIN" ]]; then

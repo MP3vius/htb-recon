@@ -81,9 +81,12 @@ When prompted, provide:
 
 ```bash
 /home/kali/htb/boxes/obscure/
-├── quickscan.txt/
-├── deepscan.gnmap/.nmap/.xml/
-├── ports.txt
+├── nmap/
+│   ├── quickscan.txt
+│   ├── ports.txt
+│   ├── deepscan.gnmap
+│   ├── deepscan.nmap
+│   └── deepscan.xml
 ├── dir/
 │   └── results.txt
 ├── sub/
