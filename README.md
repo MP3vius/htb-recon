@@ -1,5 +1,7 @@
 # HTB Recon Script
 
+## Version 1.0.1
+
 A modular, interactive Bash automation tool for efficient initial reconnaissance of Hack The Box (HTB) machines. It supports both quick and deep scanning, directory and subdomain fuzzing, DNS zone transfer checks, FTP/Samba enumeration with anonymous access checks, and recursive file downloads.
 
 ## ⚙️ Requirements
