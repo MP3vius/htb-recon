@@ -1,6 +1,6 @@
 # Changelog
 
-## Updates:
+## (1.0.1) Updates:
 - **Sudo Password Handling:** Improved sudo password input loop and validation.
 - **Variable Validation:** Enhanced checks for `OUTPUT_PATH`, `IP_ADDRESS`, and `DOMAIN` inputs.
 - **Nmap & Rustscan:** Improved output handling and directory management for scans.
